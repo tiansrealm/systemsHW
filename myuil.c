@@ -13,7 +13,7 @@ static void readStdin();
 static void parseInput();
 ////////////////////////////////////////////////////////
 char input[MAX_INPUT_SIZE];
-NameValue *NameValues;
+NameValue *nameValues;
 
 ////////////////////////////////////////////////////
 int main(int argc, char* argv[]){
@@ -39,6 +39,11 @@ static void parseInput(){
 	for(i = 0; input[i] != '\0'; i++)
 		if(input[i] == '|') verticalBars++;
 	int numPairs = verticalBars / 2;
+
+	*nameValues = calloc(numPairs, sizeof NameValue);
+	for(i = 0; i < numPairs; i++){
+		//nameValues[i].name = 
+	}
 	//printf(input); testing succesful 11/188/2013
 	//printf("%d\n", numPairs);
 }
