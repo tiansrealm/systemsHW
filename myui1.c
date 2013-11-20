@@ -18,11 +18,12 @@ NameValue *nameValues;
 int numPairs = 0;
 ////////////////////////////////////////////////////
 int main(int argc, char* argv[]){
-	readStdin();
-	parseInput();
-	printf("%s\n", input);
-	printf("%d\n", numPairs);
-	printNameValuesBackwards();
+  readStdin();
+  printf("%s\n", input);
+  parseInput();
+  
+  printf("reverse:\n");
+  printNameValuesBackwards();
 }
 
 static void readStdin(){
@@ -48,7 +49,7 @@ static void parseInput(){
 	int totalPairs = verticalBars / 2;
 
 	nameValues = calloc(totalPairs, sizeof(NameValue));
-	int vBarCount = 0, numPairs = 0;
+	int vBarCount = 0;
 	//int boolUpComingValue = 0; not used
 
 	//namepointer after odd number of '|'
