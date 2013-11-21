@@ -19,7 +19,7 @@ int numPairs = 0;
 ////////////////////////////////////////////////////
 int main(int argc, char* argv[]){
   readStdin();
-  printf("%s\n", input);
+  printf("input:\n%s\n", input);
   parseInput();
   
   printf("reverse:\n");
@@ -31,12 +31,6 @@ static void readStdin(){
 	char c;
 	input = malloc(MAX_INPUT_SIZE);
 	fread(input, MAX_INPUT_SIZE, 1, stdin);
-	/*
-	for(i = 0; i < MAX_INPUT_SIZE; i++){
-      if((c = fgetc(stdin)) != EOF){
-        input[i] = c; 
-      }else {  break; }
-    }*/
 }
 
 //after readStdin only
@@ -50,6 +44,7 @@ static void parseInput(){
 
 	nameValues = calloc(totalPairs, sizeof(NameValue));
 	int vBarCount = 0;
+	int boolColonProcessed = 0;
 	//int boolUpComingValue = 0; not used
 
 	//namepointer after odd number of '|'
@@ -60,15 +55,15 @@ static void parseInput(){
 	  		if(++vBarCount % 2 == 0){
 	  			input[i] = '\0';
 	  			numPairs++;
+	  			boolColonProcessed = 0;
 	  		}else
 	  			nameValues[numPairs].name = &input[i+1];
-	  	}else if(input[i] == ':'){
+	  	}else if(input[i] == ':' && !boolColonProcessed){
 	  		input[i] = '\0';
 	  		nameValues[numPairs].value = &input[i+2];
+	  		boolColonProcessed = 1;
 		}
 	}
-	//printf("%s",input); //testing
-	//printf("%d\n", totalPairs);
 }
 
 static void printNameValuesBackwards(){

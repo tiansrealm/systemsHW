@@ -7,7 +7,7 @@
 	delete
 */
 
-#define version "0.8"
+#define version "0.85"
 #define author "PBrooks"
 
 #include <stdio.h>
@@ -64,21 +64,32 @@ struct carrier *first = NULL;
 struct carrier *last = NULL;
 
 int rewrite = FALSE;		// if data changes then rewrite
+char errmsg[100] = "";
 
 // ---------------------------------- main() --------------------------------
 int main(int argc, char *argv[]) {
 	if (!parseArgs(argc, argv)) {
-		printf("|status: ERROR: No command-line arguments, or error in arguments\n\n%s|\n",Usage);
+		if (errmsg[0] != '\0')
+			printf("%s\n",errmsg);
+		else
+			printf("|status: ERROR: No command-line arguments, or error in arguments\n\nVersion: %s\n%s|\n",
+			version,Usage);
 		return 1;
 	}
 	
 	if (!readData()) {
-		printf("|status: ERROR: Error reading mystore.dat\n\n%s|\n", Usage);
+		if (errmsg[0] != '\0')
+			printf("|status: ERROR: %s|\n", errmsg);
+		else
+			printf("|status: ERROR: Error reading mystore.dat\n\n%s|\n", Usage);
 		return 1;
 	}
 	
 	if (command == ADD && !add(argv[2],argv[3])) {
-		printf("|status: ERROR: Failure to add new item|\n");
+		if (errmsg[0] != '\0')
+			printf("|status: ERROR: %s|\n", errmsg);
+		else
+			printf("|status: ERROR: Failure to add new item|\n");
 		return 1;
 	}
 	
@@ -87,18 +98,27 @@ int main(int argc, char *argv[]) {
 	}
 	
 	if (command == DISPLAY && !display(argv[2])) {
-		printf("|status: ERROR: Cannot display %s|\n",argv[2]);
+		if (errmsg[0] != '\0')
+			printf("|status: ERROR: %s|\n", errmsg);
+		else
+			printf("|status: ERROR: Cannot display %s|\n",argv[2]);
 		return 1;
 	}
 	
 	if (command == DELETE && !delete(argv[2])) {
-		printf("|status: ERROR: Cannot delete %s|\n", argv[2]);
+		if (errmsg[0] != '\0')
+			printf("|status: ERROR: %s|\n", errmsg);
+		else
+			printf("|status: ERROR: Cannot delete %s|\n", argv[2]);
 		return 1;
 	}
 	
 	if (rewrite)
 		if (!writeData()) {
-			printf("|status: ERROR: Could not write the data, file may be destroyed|\n");
+			if (errmsg[0] != '\0')
+				printf("|status: ERROR: %s|\n", errmsg);
+			else
+				printf("|status: ERROR: Could not write the data, file may be destroyed|\n");
 			return 1;
 		}
 	
@@ -118,8 +138,10 @@ int parseArgs(int argc, char *argv[]) {
 			command = STAT;
 			return TRUE;
 		}
-		else
+		else {
+			sprintf(errmsg, "Unrecognized argument: %s", argv[1]);
 			return FALSE;
+		}
 	}
 	// try the one-argument commands: delete and display
 	else if (argc == 3) {
@@ -133,8 +155,10 @@ int parseArgs(int argc, char *argv[]) {
 			item_start = atoi(argv[2]);
 			return TRUE;
 		}
-		else
+		else {
+			sprintf(errmsg, "Unrecognized 2-argument call: %s %s", argv[1],argv[2]);
 			return FALSE;
+		}
 	}
 	// try the two-argument command: add
 	else if (argc == 4) {
@@ -144,8 +168,10 @@ int parseArgs(int argc, char *argv[]) {
 			body = argv[3];
 			return TRUE;
 		}
-		else
+		else {
+			sprintf(errmsg, "Unrecognized 3-argument call: %s %s %s",argv[1],argv[2],argv[3]);
 			return FALSE;
+		}
 	}
 	else
 		return FALSE;
@@ -175,16 +201,19 @@ int readData(void) {
 	
 	if (fread(&nitems, sizeof(int), 1, fp) != 1) {  // try to read nitems
 		fclose(fp);
+		sprintf(errmsg, "Cannot read nitems");
 		return FALSE;
 	}
 	
 	for (i = 0; i < nitems; ++i) {
 		if (fread(&current_data, sizeof(struct data), 1, fp) != 1) { //try to read the next item
 			fclose(fp);
+			sprintf(errmsg,"Cannot read item %d\n",i+1);
 			return FALSE;
 		}
 		if ((current_carrier = calloc(1, sizeof(struct carrier))) == NULL) {  //allocate memory
 			fclose(fp);
+			sprintf(errmsg,"Cannot allocate %d\n",sizeof(struct carrier));
 			return FALSE;
 		}
 		current_carrier->theData = current_data;	// load the data into the carrier
@@ -226,7 +255,7 @@ int add(char *subject, char *body) {
 	
 	++nitems;
 	rewrite = TRUE;
-	printf("|OK|\n");
+	printf("|status: OK|\n");
 	
 	return TRUE;
 }
@@ -238,11 +267,14 @@ int writeData(void) {
 	struct data this_data;
 	
 	FILE *fp = fopen("mystore.dat", "wb");  // writing in binary
-	if (!fp) 
+	if (!fp) {
+		sprintf(errmsg, "Cannot open mystore.dat for writing.");
 		return FALSE;
+	}
 		
 	if (fwrite(&nitems, sizeof(int), 1, fp) != 1) {
 		fclose(fp);
+		sprintf(errmsg, "Cannot write the nitems element");
 		return FALSE;
 	}
 	
@@ -250,6 +282,7 @@ int writeData(void) {
 		this_data = ptr->theData;
 		if (fwrite(&this_data, sizeof(struct data), 1, fp) != 1) {
 			fclose(fp);
+			sprintf(errmsg, "Cannot write item: %d",i+1);
 			return FALSE;
 		}
 		ptr = ptr->next;
@@ -261,14 +294,22 @@ int writeData(void) {
 
 // ------------------------------------- stat ------------------------------
 void stat(void) {
+	struct tm *tp;
+
 	printf("|status: OK|\n");
 	printf("|version: %s|\n",version);
 	printf("|author: %s|\n",author);
 	printf("|nitems: %d|\n", nitems);
 	if (nitems == 0) return;
-	printf("|first-time: %s|\n", rstrip(ctime(&(first->theData.theTime))));
-	if (nitems > 1)
-	printf("|last-time: %s|\n", rstrip(ctime(&(last->theData.theTime))));
+	tp = localtime(&(first->theData.theTime));
+	printf("|first-time: %d-%02d-%02d %02d:%02d:%02d|\n",
+		tp->tm_year+1900,tp->tm_mon,tp->tm_mday,tp->tm_hour,tp->tm_min,tp->tm_sec);
+	tp = localtime(&(last->theData.theTime));
+	printf("|last-time: %d-%02d-%02d %02d:%02d:%02d|\n",
+		tp->tm_year+1900,tp->tm_mon,tp->tm_mday,tp->tm_hour,tp->tm_min,tp->tm_sec);
+
+	//printf("|first-time: %s|\n", rstrip(ctime(&(first->theData.theTime))));
+	//printf("|last-time: %s|\n", rstrip(ctime(&(last->theData.theTime))));
 	return;
 }
 
@@ -288,9 +329,12 @@ int display(char *sn) {
 	int i;
 	struct carrier *ptr;
 	struct data this_data;
+	struct tm *tp;
 	
-	if (n > nitems)
+	if (n > nitems) {
+		sprintf(errmsg, "Cannot display item %d.  Item numbers range from 1 to %d",n,nitems);
 		return FALSE;
+	}
 	
 	for (i = 1, ptr = first; i < n; ++i)
 		ptr = ptr->next;
@@ -298,7 +342,10 @@ int display(char *sn) {
 	this_data = ptr->theData;
 	printf("|status: OK|\n");
 	printf("|item: %d|\n",n);
-	printf("|time: %s|\n",rstrip(ctime(&this_data.theTime)));
+	tp = localtime(&this_data.theTime);
+	printf("|time: %d-%02d-%02d %02d:%02d:%02d|\n",
+		tp->tm_year+1900,tp->tm_mon,tp->tm_mday,tp->tm_hour,tp->tm_min,tp->tm_sec);
+	//printf("|time: %s|\n",rstrip(ctime(&this_data.theTime)));
 	printf("|subject: %s|\n",this_data.theSubject);
 	printf("|body: %s|\n",this_data.theBody);
 	
@@ -312,8 +359,10 @@ int delete(char *sn) {
 	struct carrier *ptr, *previous;
 
 	
-	if (n > nitems)
+	if (n > nitems) {
+		sprintf(errmsg, "Cannot delete item %d.  Item numbers range from 1 to %d",n,nitems);
 		return FALSE;
+	}
 		
 	previous = first;
 	if (n == 1) {
